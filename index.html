@@ -357,7 +357,8 @@ function analysis(){
     <section class="card"><h2>לפי ימים בשבוע</h2><svg class="chart" viewBox="0 0 ${ww} ${wh}" role="img" aria-label="הוצאות לפי יום בשבוע">${wbars}</svg></section>
   </div>`;
 }
-function gate(){return`<div class="gate"><h1>הארנק שלי</h1><p>האפליקציה נפתחת מהקישור האישי שלך.<br>פתח אותו פעם אחת מהטלפון, ואז הוסף למסך הבית.</p></div>`}
+function gate(){return`<div class="gate"><h1>הארנק שלי</h1><p>הדבק כאן את הקישור האישי או את המפתח (פעם אחת בלבד).</p><label class="field"><input id="g-key" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="הדבק כאן"></label><button class="btn primary" onclick="saveKey()">כניסה</button></div>`}
+function saveKey(){const v=(document.getElementById('g-key').value||'').trim();const m=v.match(/[?&]k=([^&#\s]+)/);const k=m?decodeURIComponent(m[1]):v;if(k.length<10)return;ls.set('arnak-key',k);location.reload()}
 
 /* ---- sheets ---- */
 const sheet=document.getElementById('sheet'),scrim=document.getElementById('scrim');
