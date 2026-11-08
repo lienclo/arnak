@@ -144,6 +144,13 @@ nav button.on{color:var(--accent)}
 .catbtn{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:14px;border:1.5px solid var(--line);font-size:12.5px;font-weight:700;text-align:center}
 .catbtn.on{border-color:var(--accent);background:var(--accent-soft)}
 .catbtn .ico{width:32px;height:32px}
+.catbtn.add{border-style:dashed;color:var(--muted)}
+.ico .e{font-size:18px;line-height:1}
+.newcat{display:flex;flex-direction:column;gap:10px}
+.emogrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.emo{all:unset;cursor:pointer;text-align:center;font-size:22px;padding:6px 0;border-radius:10px;border:1.5px solid var(--line)}
+.emo.on{border-color:var(--accent);background:var(--accent-soft)}
+.mycats{display:flex;flex-wrap:wrap;gap:6px}
 .btn{all:unset;cursor:pointer;text-align:center;padding:14px;border-radius:14px;font-weight:700;font-size:15.5px}
 .btn.primary{background:var(--accent);color:#fff}
 .btn.danger{background:var(--up-soft);color:var(--up)}
@@ -202,10 +209,19 @@ const ICONS={
   fun:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
   other:'<circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/>'
 };
-const CATS={
+let CATS={
   super:{n:'סופר ומכולת',c:'--c1'}, food:{n:'אוכל בחוץ',c:'--c2'}, car:{n:'רכב ותחבורה',c:'--c3'}, shop:{n:'קניות וביגוד',c:'--c4'},
   health:{n:'בריאות וטיפוח',c:'--c5'}, subs:{n:'מנויים',c:'--c6'}, bills:{n:'חשבונות',c:'--c7'}, fun:{n:'בילויים',c:'--c8'}, other:{n:'אחר',c:'--c9'}
 };
+const BASE=Object.keys(CATS);
+const EMOJIS=['🏷️','🎁','✈️','🏠','👶','🐶','📚','💇','🎮','💊','🏋️','🍷','☕','🚬','💼','🎓','🛠️','💸'];
+let CUSTOM=[];
+function applyCats(list){
+  CUSTOM=(list||[]).filter(c=>c&&c.key&&c.name);
+  const o={};BASE.filter(k=>k!=='other').forEach(k=>o[k]=CATS[k]);
+  CUSTOM.forEach((c,i)=>o[c.key]={n:c.name,c:'--c'+(i%8+1),e:c.icon||'🏷️'});
+  o.other=CATS.other;CATS=o;
+}
 const SRC={ap:['Apple Pay',1],inv:['חשבונית · Gmail',0],both:['Apple Pay + חשבונית',1],bit:['ביט',0],cash:['מזומן',0],manual:['ידני',0]};
 const MONTHS=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 const MSHORT=['ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
@@ -218,7 +234,7 @@ const KEY=ls.get('arnak-key');
 
 let TX=[];
 function load(raw){TX=(raw||[]).map(t=>({id:t.id,date:new Date(t.date),mer:t.merchant,cat:CATS[t.category]?t.category:'other',amt:Number(t.amount)||0,src:t.source,note:t.note||''})).filter(t=>!isNaN(t.date)).sort((a,b)=>b.date-a.date)}
-try{load(JSON.parse(ls.get('arnak-cache')||'[]'))}catch(e){}
+try{applyCats(JSON.parse(ls.get('arnak-cats')||'[]'));load(JSON.parse(ls.get('arnak-cache')||'[]'))}catch(e){}
 
 async function api(body){
   const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,k:KEY})});
@@ -229,7 +245,7 @@ async function refresh(){
   const s=document.getElementById('sync');s.classList.add('spin');
   try{const r=await fetch(API+'?k='+encodeURIComponent(KEY));const j=await r.json();
     if(!j.ok){toast(j.error==='auth'?'הקישור לא תקין':'שגיאה בטעינה');return}
-    ls.set('arnak-cache',JSON.stringify(j.tx));load(j.tx);render();
+    ls.set('arnak-cats',JSON.stringify(j.cats||[]));applyCats(j.cats);ls.set('arnak-cache',JSON.stringify(j.tx));load(j.tx);render();
   }catch(e){toast('אין חיבור, מוצג המידע האחרון')}finally{s.classList.remove('spin')}
 }
 
@@ -241,7 +257,7 @@ const money=n=>fmt(n,n%1?2:0);
 const inMonth=(y,m,uptoDay)=>TX.filter(t=>t.date.getFullYear()===y&&t.date.getMonth()===m&&(!uptoDay||t.date.getDate()<=uptoDay));
 const sum=a=>a.reduce((s,t)=>s+t.amt,0);
 const byCat=a=>{const o={};for(const k in CATS)o[k]=0;a.forEach(t=>o[t.cat]+=t.amt);return o};
-const ico=cat=>`<div class="ico" style="background:color-mix(in srgb,var(${CATS[cat].c}) 16%,transparent);color:var(${CATS[cat].c})"><svg viewBox="0 0 24 24">${ICONS[cat]}</svg></div>`;
+const ico=cat=>`<div class="ico" style="background:color-mix(in srgb,var(${CATS[cat].c}) 16%,transparent);color:var(${CATS[cat].c})">${CATS[cat].e?`<span class="e">${esc(CATS[cat].e)}</span>`:`<svg viewBox="0 0 24 24">${ICONS[cat]}</svg>`}</div>`;
 const srcTag=s=>{const v=SRC[s]||SRC.manual;return`<span class="src ${v[1]?'ap':''}">${v[0]}</span>`};
 const pct=(a,b)=>b?Math.round((a-b)/b*100):null;
 const deltaPill=p=>p===null?'':`<span class="pill ${p>0?'up':p<0?'down':''}">${p>0?'▲':p<0?'▼':''} ${Math.abs(p)}%</span>`;
@@ -286,7 +302,7 @@ function home(){
         <text x="90" y="106" text-anchor="middle" font-family="Rubik,sans-serif" font-weight="700" font-size="22" style="fill:var(--ink)">${fmt(total)}</text></svg></div>
       ${cats.length?`<div class="cats">${cats.map(c=>`
         <div class="cat" data-cat="${c.k}" role="button" tabindex="0">${ico(c.k)}
-          <div class="cmid"><div class="ctop"><span class="cname">${CATS[c.k].n}</span><span class="cmeta">${c.n} תשלומים · ${Math.round(c.v/total*100)}%</span></div>
+          <div class="cmid"><div class="ctop"><span class="cname">${esc(CATS[c.k].n)}</span><span class="cmeta">${c.n} תשלומים · ${Math.round(c.v/total*100)}%</span></div>
             <div class="bar"><i style="width:${c.v/max*100}%;background:var(${CATS[c.k].c})"></i></div></div>
           <div class="cend"><span class="num">${fmt(c.v)}</span>${c.p===null?'<span class="delta flat">חדש</span>':`<span class="delta ${c.p>0?'up':c.p<0?'down':'flat'}">${c.p>0?'▲':c.p<0?'▼':''} ${Math.abs(c.p)}%</span>`}</div>
         </div>`).join('')}</div>`:`<div class="empty">עוד אין תשלומים בחודש הזה.<br>כל תשלום ב-Apple Pay, חשבונית במייל או לחיצה על + יופיע כאן.</div>`}
@@ -296,7 +312,7 @@ function home(){
 }
 function txRow(t){
   const tm=t.date.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
-  return `<div class="tx" data-id="${esc(t.id)}" role="button" tabindex="0">${ico(t.cat)}<div style="min-width:0"><div class="t1">${esc(t.mer)}</div><div class="t2">${CATS[t.cat].n} · ${tm} ${srcTag(t.src)}</div></div><div class="amt num">${money(t.amt)}</div></div>`;
+  return `<div class="tx" data-id="${esc(t.id)}" role="button" tabindex="0">${ico(t.cat)}<div style="min-width:0"><div class="t1">${esc(t.mer)}</div><div class="t2">${esc(CATS[t.cat].n)} · ${tm} ${srcTag(t.src)}</div></div><div class="amt num">${money(t.amt)}</div></div>`;
 }
 function dayLabel(d){
   const n=now(),a=new Date(d.getFullYear(),d.getMonth(),d.getDate()),b=new Date(n.getFullYear(),n.getMonth(),n.getDate());
@@ -311,7 +327,7 @@ function txScreen(){
   const groups=[];list.forEach(t=>{const k=t.date.toDateString();let g=groups[groups.length-1];if(!g||g.k!==k){g={k,d:t.date,items:[]};groups.push(g)}g.items.push(t)});
   return `<div class="screen">
     <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="q" placeholder="חיפוש בית עסק" value="${esc(state.q)}"></label>
-    <div class="chips"><button class="chip ${!state.cat?'on':''}" data-chip="">הכל</button>${Object.keys(CATS).map(k=>`<button class="chip ${state.cat===k?'on':''}" data-chip="${k}">${CATS[k].n}</button>`).join('')}</div>
+    <div class="chips"><button class="chip ${!state.cat?'on':''}" data-chip="">הכל</button>${Object.keys(CATS).map(k=>`<button class="chip ${state.cat===k?'on':''}" data-chip="${k}">${esc(CATS[k].n)}</button>`).join('')}</div>
     <div class="card" style="padding-block:6px 10px">
       <div style="display:flex;justify-content:space-between;padding-block:10px 4px;font-size:13px;color:var(--muted)"><span>${list.length} תשלומים</span><span class="num" style="color:var(--ink);font-weight:600">${fmt(sum(list))}</span></div>
       ${groups.length?groups.map(g=>`<div class="day"><span>${dayLabel(g.d)}</span><span class="num">${fmt(sum(g.items))}</span></div>${g.items.map(txRow).join('')}`).join(''):'<div class="empty">אין תשלומים להצגה</div>'}
@@ -345,7 +361,7 @@ function analysis(){
   return `<div class="screen">
     <section class="card"><h2>חצי שנה אחרונה</h2><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="הוצאות לפי חודש">${avgLine}${bars}</svg></section>
     <div class="insights">
-      ${jump&&jump.d>0&&sum(inMonth(py,pm))>0?`<div class="ins wide"><span class="k">הקפיצה הכי גדולה</span><span class="v" style="color:var(--up)">+${fmt(jump.d)}</span><span class="s">${CATS[jump.k].n} ${jump.p!==null?'עלה ב-'+jump.p+'%':''} לעומת ${MONTHS[pm]} באותה נקודה בחודש</span></div>`:''}
+      ${jump&&jump.d>0&&sum(inMonth(py,pm))>0?`<div class="ins wide"><span class="k">הקפיצה הכי גדולה</span><span class="v" style="color:var(--up)">+${fmt(jump.d)}</span><span class="s">${esc(CATS[jump.k].n)} ${jump.p!==null?'עלה ב-'+jump.p+'%':''} לעומת ${MONTHS[pm]} באותה נקודה בחודש</span></div>`:''}
       <div class="ins"><span class="k">מנויים קבועים</span><span class="v">${money(subs)}</span><span class="s">${fmt(subs*12)} בשנה</span></div>
       <div class="ins"><span class="k">הקנייה הכי גדולה</span><span class="v">${fmt(biggest.amt)}</span><span class="s">${esc(biggest.mer)} · ${biggest.date.getDate()}.${biggest.date.getMonth()+1}</span></div>
       <div class="ins"><span class="k">היום היקר בשבוע</span><span class="v">יום ${DAYS[topDay]}</span><span class="s">${Math.round(wk[topDay]/total*100)}% מההוצאות</span></div>
@@ -365,7 +381,41 @@ const sheet=document.getElementById('sheet'),scrim=document.getElementById('scri
 function openSheet(html){sheet.innerHTML='<div class="grab"></div>'+html;scrim.classList.add('open');sheet.classList.add('open')}
 function closeSheet(){scrim.classList.remove('open');sheet.classList.remove('open')}
 scrim.onclick=closeSheet;
-const catGrid=sel=>`<div class="catgrid">${Object.keys(CATS).map(k=>`<button class="catbtn ${sel===k?'on':''}" data-pick="${k}">${ico(k)}${CATS[k].n}</button>`).join('')}</div>`;
+const catGrid=sel=>`<div class="catgrid">${Object.keys(CATS).map(k=>`<button class="catbtn ${sel===k?'on':''}" data-pick="${k}">${ico(k)}${esc(CATS[k].n)}</button>`).join('')}<button class="catbtn add" data-newcat><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>קטגוריה חדשה</button></div>`;
+function wirePicks(pick){
+  sheet.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>pick(b.dataset.pick));
+  sheet.querySelector('[data-newcat]').onclick=()=>newCatForm(pick);
+}
+function newCatForm(pick){
+  if(sheet.querySelector('.newcat'))return;
+  let icon=EMOJIS[0];
+  sheet.querySelector('.catgrid').insertAdjacentHTML('afterend',`<div class="newcat">
+    <label class="field"><input id="nc-name" placeholder="שם הקטגוריה" maxlength="24" autocomplete="off"></label>
+    <div class="emogrid">${EMOJIS.map((e,i)=>`<button class="emo ${i?'':'on'}" data-emo="${e}">${e}</button>`).join('')}</div>
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px"><button class="btn ghost" id="nc-x">ביטול</button><button class="btn primary" id="nc-ok">הוספה</button></div>
+    ${CUSTOM.length?`<div class="lbl2" style="margin:4px 0 0">הקטגוריות שלך (לחיצה = מחיקה)</div><div class="mycats">${CUSTOM.map(c=>`<button class="chip" data-delcat="${esc(c.key)}">${esc(c.icon)} ${esc(c.name)} ✕</button>`).join('')}</div>`:''}
+  </div>`);
+  const form=sheet.querySelector('.newcat');
+  setTimeout(()=>document.getElementById('nc-name').focus(),100);
+  const regrid=sel=>{sheet.querySelector('.catgrid').outerHTML=catGrid(sel);form.remove();wirePicks(pick)};
+  form.querySelectorAll('[data-emo]').forEach(b=>b.onclick=()=>{icon=b.dataset.emo;form.querySelectorAll('[data-emo]').forEach(x=>x.classList.toggle('on',x===b))});
+  document.getElementById('nc-x').onclick=()=>form.remove();
+  document.getElementById('nc-ok').onclick=async e=>{
+    const name=document.getElementById('nc-name').value.trim();if(!name){toast('צריך לכתוב שם');return}
+    e.target.disabled=true;e.target.textContent='שומר…';
+    try{const r=await api({a:'newcat',name,icon});
+      if(!CUSTOM.some(c=>c.key===r.key))applyCats([...CUSTOM,{key:r.key,name,icon}]);
+      ls.set('arnak-cats',JSON.stringify(CUSTOM));regrid(null);pick(r.key);
+    }catch(err){e.target.disabled=false;e.target.textContent='הוספה';toast('לא נשמר, נסה שוב')}
+  };
+  form.querySelectorAll('[data-delcat]').forEach(b=>b.onclick=async()=>{
+    if(!b.dataset.sure){b.dataset.sure=1;b.textContent='למחוק? לחץ שוב';return}
+    const key=b.dataset.delcat;b.disabled=true;
+    try{await api({a:'delcat',key});applyCats(CUSTOM.filter(c=>c.key!==key));ls.set('arnak-cats',JSON.stringify(CUSTOM));
+      TX.forEach(t=>{if(t.cat===key)t.cat='other'});render();regrid(null);toast('הקטגוריה נמחקה');
+    }catch(err){b.disabled=false;toast('לא נמחק, נסה שוב')}
+  });
+}
 
 function txSheet(id){
   const t=TX.find(x=>x.id===id);if(!t)return;
@@ -375,8 +425,8 @@ function txSheet(id){
     <div class="lbl2">קטגוריה</div>${catGrid(t.cat)}
     <div style="font-size:12.5px;color:var(--muted);margin-top:-6px">שינוי קטגוריה חל על כל התשלומים ב${esc(t.mer)}, גם בעתיד.</div>
     <div id="delzone"><button class="btn danger" style="display:block" id="del">מחיקת התשלום</button></div>`);
-  sheet.querySelectorAll('[data-pick]').forEach(b=>b.onclick=async()=>{
-    const cat=b.dataset.pick;if(cat===t.cat){closeSheet();return}
+  wirePicks(async cat=>{
+    if(cat===t.cat){closeSheet();return}
     const old=t.cat;TX.filter(x=>x.mer===t.mer).forEach(x=>x.cat=cat);closeSheet();render();toast('הקטגוריה עודכנה');
     try{await api({a:'cat',id,category:cat});refresh()}catch(e){TX.filter(x=>x.mer===t.mer).forEach(x=>x.cat=old);render();toast('לא נשמר, נסה שוב')}
   });
@@ -399,7 +449,7 @@ function addSheet(){
     <button class="btn primary" id="f-save">שמירה</button>`);
   setTimeout(()=>document.getElementById('f-amt').focus(),250);
   sheet.querySelectorAll('#f-src button').forEach(b=>b.onclick=()=>{src=b.dataset.s;sheet.querySelectorAll('#f-src button').forEach(x=>x.classList.toggle('on',x===b))});
-  sheet.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{cat=cat===b.dataset.pick?null:b.dataset.pick;sheet.querySelectorAll('[data-pick]').forEach(x=>x.classList.toggle('on',x.dataset.pick===cat))});
+  wirePicks(k=>{cat=cat===k?null:k;sheet.querySelectorAll('[data-pick]').forEach(x=>x.classList.toggle('on',x.dataset.pick===cat))});
   document.getElementById('f-save').onclick=async e=>{
     const amt=parseFloat(document.getElementById('f-amt').value.replace(',','.'));const mer=document.getElementById('f-mer').value.trim();
     if(!(amt>0)){toast('צריך סכום');return}
